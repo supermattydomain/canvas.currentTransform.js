@@ -26,6 +26,7 @@
 		originalScale     = contextProto.scale;
 		originalTranslate = contextProto.translate;
 		originalTransform = contextProto.transform;
+		originalSetTransform = context.setTransform;
 		// Over-ride the Canvas factory method that creates Contexts
 		canvasProto.getContext = function() {
 			// Workaround: older browsers do not accept 'arguments' as second parameter of Function.apply
@@ -69,17 +70,6 @@
 			this._transformMatrix[3] *= y;
 			return originalScale.apply(this, Array.prototype.slice.call(arguments));
 		};
-		contextProto.transform = function(a, b, c, d, e, f) {
-			this._transformMatrix = [
-				this._transformMatrix[0] * a + this._transformMatrix[2] * b,
-				this._transformMatrix[1] * a + this._transformMatrix[3] * b,
-				this._transformMatrix[0] * c + this._transformMatrix[2] * d,
-				this._transformMatrix[1] * c + this._transformMatrix[3] * d,
-				this._transformMatrix[0] * e + this._transformMatrix[2] * f + this._transformMatrix[4],
-				this._transformMatrix[1] * e + this._transformMatrix[3] * f + this._transformMatrix[5]
-			];
-			return originalTransform.apply(this, Array.prototype.slice.call(arguments));
-		};
 		contextProto.rotate = function(angle) {
 			var c = Math.cos(angle), s = Math.sin(angle);
 			this._transformMatrix = [
@@ -91,6 +81,21 @@
 				this._transformMatrix[5]
 			];
 			return originalRotate.apply(this, Array.prototype.slice.call(arguments));
+		};
+		contextProto.transform = function(a, b, c, d, e, f) {
+			this._transformMatrix = [
+				this._transformMatrix[0] * a + this._transformMatrix[2] * b,
+				this._transformMatrix[1] * a + this._transformMatrix[3] * b,
+				this._transformMatrix[0] * c + this._transformMatrix[2] * d,
+				this._transformMatrix[1] * c + this._transformMatrix[3] * d,
+				this._transformMatrix[0] * e + this._transformMatrix[2] * f + this._transformMatrix[4],
+				this._transformMatrix[1] * e + this._transformMatrix[3] * f + this._transformMatrix[5]
+			];
+			return originalTransform.apply(this, Array.prototype.slice.call(arguments));
+		};
+		contextProto.setTransform = function(a, b, c, d, e, f) {
+			this._transformMatrix = [ a, b, c, d, e, f];
+			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments));
 		};
 	}
 	if (needPolyfill) {
