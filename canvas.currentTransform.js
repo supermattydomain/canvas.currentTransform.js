@@ -3,20 +3,36 @@
 		context = canvas.getContext("2d"),
 		canvasProto,
 		contextProto,
-		needPolyfill,
-		needPolyfillInverse,
 		originalGetContext, originalSave, originalRestore, originalRotate,
 		originalScale, originalTranslate, originalTransform;
 	if (Object.getPrototypeOf) {
 		canvasProto = Object.getPrototypeOf(canvas);
 		contextProto = Object.getPrototypeOf(context);
 	} else {
-		canvasProto = canvas.__proto__ || canvas.constructor.prototype || HTMLCanvasElement;
-		contextProto = context.__proto__ || context.constructor.prototype || CanvasRenderingContext2D;
+		canvasProto = canvas.constructor.prototype || canvas.__proto__ || HTMLCanvasElement;
+		contextProto = context.constructor.prototype || context.__proto__ || CanvasRenderingContext2D;
 	}
-	needPolyfill = !('mozCurrentTransform' in contextProto);
-	needPolyfillInverse = !('mozCurrentTransformInverse' in contextProto);
-	if (needPolyfill || needPolyfillInverse) {
+	// If the browser has prefixed mozCurrentTransform[Inverse] properties, add renamed non-prefixed properties mirroring them.
+	if (!('currentTransform' in contextProto) && ('mozCurrentTransform' in contextProto)) {
+		Object.defineProperty(contextProto, 'currentTransform', {
+			get: function() {
+				return this.mozCurrentTransform;
+			},
+			configurable: false,
+			enumerable: false
+		});
+	}
+	if (!('currentTransformInverse' in contextProto) && ('mozCurrentTransformInverse' in contextProto)) {
+		Object.defineProperty(contextProto, 'currentTransformInverse', {
+			get: function() {
+				return this.mozCurrentTransformInverse;
+			},
+			configurable: false,
+			enumerable: false
+		});
+	}
+	// If we still don't have currentTransform[Inverse] properties, we need to track the CTM ourselves.
+	if (!('currentTransform' in contextProto) || !('currentTransformInverse' in contextProto)) {
 		// Saved values of over-ridden Canvas methods
 		originalGetContext = canvasProto.getContext;
 		// Saved values of over-ridden Context methods
@@ -98,18 +114,18 @@
 			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments));
 		};
 	}
-	if (needPolyfill) {
-		Object.defineProperty(contextProto, 'mozCurrentTransform', {
-			get: function getCurrentTransform() {
+	if (!('currentTransform' in contextProto)) {
+		Object.defineProperty(contextProto, 'currentTransform', {
+			get: function() {
 				return this._transformMatrix;
 			},
 			configurable: false,
 			enumerable: false
 		});
 	}
-	if (needPolyfillInverse) {
-		Object.defineProperty(contextProto, 'mozCurrentTransformInverse', {
-			get: function getCurrentTransformInverse() {
+	if (!('currentTransformInverse' in contextProto)) {
+		Object.defineProperty(contextProto, 'currentTransformInverse', {
+			get: function() {
 				var a = this._transformMatrix[0], b = this._transformMatrix[1],
 					c = this._transformMatrix[2], d = this._transformMatrix[3],
 					e = this._transformMatrix[4], f = this._transformMatrix[5],
