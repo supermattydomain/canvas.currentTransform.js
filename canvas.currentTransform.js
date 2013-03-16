@@ -1,5 +1,5 @@
 (function() {
-	var initialMatrix = [1, 0, 0, 1, 0, 0],
+	var identityMatrix = [1, 0, 0, 1, 0, 0],
 		canvas = document.createElement('canvas'),
 		context = canvas.getContext("2d"),
 		canvasProto,
@@ -27,6 +27,12 @@
 			enumerable: false
 		});
 	}
+	// Separate polyfills for potentially missing Canvas context methods
+	if (!('resetTransform' in contextProto)) {
+		contextProto.resetTransform = function() {
+			this.setTransform.apply(this, identityMatrix);
+		};
+	}
 	if (!('currentTransformInverse' in contextProto) && ('mozCurrentTransformInverse' in contextProto)) {
 		Object.defineProperty(contextProto, 'currentTransformInverse', {
 			get: function() {
@@ -50,7 +56,7 @@
 		originalTransform = contextProto.transform;
 		originalSetTransform = context.setTransform;
 		originalResetTransform = contextProto.resetTransform;
-		// Over-ride the Canvas factory method that creates Contexts
+		// Over-ride the Canvas factory method that creates Contexts to create decorated ones
 		canvasProto.getContext = function() {
 			// Workaround: older browsers do not accept 'arguments' as second parameter of Function.apply
 			var context = originalGetContext.apply(this, Array.prototype.slice.call(arguments));
@@ -58,7 +64,7 @@
 			Object.defineProperty(context, '_transformMatrix', {
 				configurable: false,
 				enumerable: false,
-				value: initialMatrix,
+				value: identityMatrix,
 				writable: true
 			});
 			Object.defineProperty(context, '_transformStack', {
@@ -121,8 +127,8 @@
 			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments));
 		};
 		contextProto.resetTransform = function() {
-			this._transformMatrix = initialMatrix;
-			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments));
+			this._transformMatrix = identityMatrix;
+			return originalResetTransform.apply(this, Array.prototype.slice.call(arguments));
 		};
 	}
 	if (!('currentTransform' in contextProto)) {
