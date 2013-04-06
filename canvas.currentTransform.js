@@ -210,7 +210,7 @@
 				return this._transformMatrix;
 			},
 			set: function(newMatrix) {
-				this.setTransform(newMatrix);
+				this.setTransform.apply(this, newMatrix);
 			},
 			configurable: false,
 			enumerable: true
