@@ -3,32 +3,12 @@
 ENABLE_ASSERTIONS = true;
 
 (function($) {
-	/**
-	 * Transform the given (x,y) point by the given affine transformation matrix.
-	 * Array members are expected to be in the order used by the Canvas 2D context/SVGMatrix, so that:
-	 * Identity:    [  1,  0,  0,  1,  0,  0 ]
-	 * Translation: [  1,  0,  0,  1, tx, ty ]
-	 * Scaling:     [ sx,  0,  0, sy,  0,  0 ]
-	 * Rotation CW: [ +c, -s, +s, +c,  0,  0 ] (where c=cos(angle), s=sin(angle))
-	 * 
-	 * Correspondence between matrix arguments and transformation matrix:
-	 * transform(a, b, c, d, e, f)
-	 * is equivalent to transformation by the matrix:
-	 * [ a c e ]
-	 * [ b d f ]
-	 * [ 0 0 1 ]
-	 */
-	function applyMatrix(x, y, m) {
-		return [
-			m[0] * x + m[2] * y + m[4],
-			m[1] * x + m[3] * y + m[5]
-		];
-	}
 	$(function() {
 		var
 			canvas = $('#theCanvas'),
 			context = canvas[0].getContext("2d"),
 			identityMatrix = [1, 0, 0, 1, 0, 0],
+			someOtherMatrix = [1, 2, 3, 4, 5, 6],
 			point,
 			m,
 			top = -20,
@@ -38,27 +18,51 @@ ENABLE_ASSERTIONS = true;
 
 		// 1. Test transform functions and save/restore
 		// The following four do nothing except exercise the API.
+		// 1.1 resetTransform sets the CTM to the identity matrix.
 		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		context.setTransform.apply(context, someOtherMatrix);
+		assert(function() { return context.currentTransform.equalsDeep(someOtherMatrix); });
 		context.resetTransform();
 		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		// 1.2 setTransform over-writes the CTM with the supplied matrix.
+		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		context.setTransform.apply(context, someOtherMatrix);
+		assert(function() { return context.currentTransform.equalsDeep(someOtherMatrix); });
+		context.setTransform.apply(context, identityMatrix);
+		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		// 1.3 transform multiplies the CTM by the given matrix
+		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		context.setTransform.apply(context, someOtherMatrix);
+		assert(function() { return context.currentTransform.equalsDeep(someOtherMatrix); });
 		context.setTransform.apply(context, identityMatrix);
 		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
 		context.transform.apply(context, identityMatrix);
 		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		// 1.4 Assigning to currentTransform over-writes the CTM with the supplied matrix.
+		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		context.setTransform.apply(context, someOtherMatrix);
+		assert(function() { return context.currentTransform.equalsDeep(someOtherMatrix); });
 		context.currentTransform = identityMatrix;
 		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		// 1.5 save and restore push/pop the CTM onto/from a stack of transformation matrices.
 		debug('Current transform: ', context.currentTransform);
 		debug('Current transform inverse: ', context.currentTransformInverse);
+		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		assert(function() { return context.currentTransformInverse.equalsDeep(identityMatrix); });
 		debug("Saving transform matrix");
 		context.save();
 		debug("Scaling by factor of two");
 		context.scale(2, 2);
 		debug('Current transform: ', context.currentTransform);
 		debug('Current transform inverse: ', context.currentTransformInverse);
+		assert(function() { return context.currentTransform.equalsDeep([2, 0, 0, 2, 0, 0]); });
+		assert(function() { return context.currentTransformInverse.equalsDeep([0.5, 0, 0, 0.5, 0, 0]); });
 		debug("Restoring transform matrix");
 		context.restore();
 		debug('Current transform: ', context.currentTransform);
 		debug('Current transform inverse: ', context.currentTransformInverse);
+		assert(function() { return context.currentTransform.equalsDeep(identityMatrix); });
+		assert(function() { return context.currentTransformInverse.equalsDeep(identityMatrix); });
 
 		// 2. Show that performing transforms via the canvas, and manually using the retrieved transform matrix,
 		// yield the same results.
@@ -88,13 +92,13 @@ ENABLE_ASSERTIONS = true;
 		// context.fillRect(point[0], point[1], width, height);
 		// This draws the rectangle transformed by the matrix
 		context.beginPath();
-		point = applyMatrix(left, top, m);
+		point = transformPoint(left, top, m);
 		context.moveTo(point[0], point[1]);
-		point = applyMatrix(left + width, top, m);
+		point = transformPoint(left + width, top, m);
 		context.lineTo(point[0], point[1]);
-		point = applyMatrix(left + width, top + height, m);
+		point = transformPoint(left + width, top + height, m);
 		context.lineTo(point[0], point[1]);
-		point = applyMatrix(left, top + height, m);
+		point = transformPoint(left, top + height, m);
 		context.lineTo(point[0], point[1]);
 		context.closePath();
 		context.fill();
