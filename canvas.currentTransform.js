@@ -124,7 +124,7 @@
 		// Over-ride the Canvas factory method that creates Contexts to create decorated ones
 		canvasProto.getContext = function() {
 			// Workaround: older browsers do not accept 'arguments' as second parameter of Function.apply
-			var context = originalGetContext.apply(this, Array.prototype.slice.call(arguments));
+			var context = originalGetContext.apply(this, Array.prototype.slice.call(arguments, 0));
 			if (Object.defineProperty) {
 				// Using Object.defineProperty rather than simple assignment in order to hide these 'private' data
 				Object.defineProperty(context, '_transformMatrix', {
@@ -151,26 +151,26 @@
 		// Over-ride each Context method that modifies the transform matrix
 		contextProto.save = function() {
 			this._transformStack.push(this._transformMatrix.concat()); // shallow copy
-			return originalSave.apply(this, Array.prototype.slice.call(arguments));
+			return originalSave.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.restore = function() {
 			var mtx = this._transformStack.pop();
 			if (mtx) {
 				this._transformMatrix = mtx;
 			}
-			return originalRestore.apply(this, Array.prototype.slice.call(arguments));
+			return originalRestore.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.translate = function(x, y) {
 			this._transformMatrix[4] += this._transformMatrix[0] * x + this._transformMatrix[2] * y;
 			this._transformMatrix[5] += this._transformMatrix[1] * x + this._transformMatrix[3] * y;
-			return originalTranslate.apply(this, Array.prototype.slice.call(arguments));
+			return originalTranslate.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.scale = function(x, y) {
 			this._transformMatrix[0] *= x;
 			this._transformMatrix[1] *= x;
 			this._transformMatrix[2] *= y;
 			this._transformMatrix[3] *= y;
-			return originalScale.apply(this, Array.prototype.slice.call(arguments));
+			return originalScale.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.rotate = function(angle) {
 			var c = Math.cos(angle), s = Math.sin(angle);
@@ -182,7 +182,7 @@
 				this._transformMatrix[4],
 				this._transformMatrix[5]
 			];
-			return originalRotate.apply(this, Array.prototype.slice.call(arguments));
+			return originalRotate.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.transform = function(a, b, c, d, e, f) {
 			this._transformMatrix = [
@@ -193,15 +193,15 @@
 				this._transformMatrix[0] * e + this._transformMatrix[2] * f + this._transformMatrix[4],
 				this._transformMatrix[1] * e + this._transformMatrix[3] * f + this._transformMatrix[5]
 			];
-			return originalTransform.apply(this, Array.prototype.slice.call(arguments));
+			return originalTransform.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.setTransform = function(a, b, c, d, e, f) {
 			this._transformMatrix = [ a, b, c, d, e, f];
-			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments));
+			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.resetTransform = function() {
 			this._transformMatrix = identityMatrix;
-			return originalResetTransform.apply(this, Array.prototype.slice.call(arguments));
+			return originalResetTransform.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 	}
 	if (defineProperty && !('currentTransform' in contextProto)) {
