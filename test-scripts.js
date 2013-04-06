@@ -1,3 +1,5 @@
+// TODO: Use QUnit.
+
 ENABLE_ASSERTIONS = true;
 
 (function($) {

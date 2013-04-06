@@ -11,29 +11,50 @@
  * Patches, bugfixes, enhancements, use stories etc are welcome - please email me.
  */
 (function() {
-	var identityMatrix = [1, 0, 0, 1, 0, 0],
-		canvas = document.createElement('canvas'),
-		context = canvas.getContext("2d"),
+	var vendorPrefixes = ['moz', 'webkit', 'khtml', 'o', 'ms'],
+		i,
+		identityMatrix = [1, 0, 0, 1, 0, 0],
+		canvas,
+		context,
 		canvasProto,
 		contextProto,
 		originalGetContext, originalSave, originalRestore, originalRotate,
 		originalScale, originalTranslate, originalTransform,
-		originalSetTransform, originalResetTransform;
+		originalSetTransform, originalResetTransform,
+		getPrototypeOf, defineProperty;
 	/*
 	debug('Object.getPrototypeOf: ', Object.getPrototypeOf);
 	debug('Object.defineProperty: ', Object.defineProperty);
 	debug('__defineGetter__: ', __defineGetter__);
 	debug('__defineSetter__: ', __defineSetter__);
 	*/
-	// Polyfill for Object.getPrototypeOf
-	if (!Object.getPrototypeOf) {
-		Object.prototype.getPrototypeOf = function() {
-			return this.constructor.prototype || this.__proto__;
+	canvas = document.createElement('canvas');
+	if (canvas && canvas.getContext) {
+		context = canvas.getContext("2d");
+	} else {
+		context = undefined;
+	}
+	if (!context) {
+		return; // Silently do nothing if <canvas> 2D context unavailable
+	}
+	// This would be a polyfill for Object.getPrototypeOf,
+	// except that extending Object.prototype is Evil.
+	if (Object.getPrototypeOf) {
+		getPrototypeOf = Object.getPrototypeOf;
+	} else {
+		getPrototypeOf = function() {
+			return this.__proto__ || this.constructor.prototype;
 		};
 	}
-	// Polyfill for Object.defineProperty
-	if (!Object.defineProperty && Object.__defineGetter__ && Object.__defineSetter__) {
-		Object.prototype.defineProperty = function(name, descriptor) {
+	// Another would-be polyfill, for Object.defineProperty.
+	// This only handles the 'accessor descriptor' case, not the 'data descriptor' case.
+	if (Object.defineProperty) {
+		// NOTE: IE8 has this method, but it only works on DOM objects attached to the DOM tree.
+		// But IE8 doesn't support <canvas>, so we're stuffed anyway and should have bailed earlier.
+		defineProperty = Object.defineProperty;
+	} else if (Object.__defineGetter__ && Object.__defineSetter__) {
+		// Old Mozilla property API
+		defineProperty = function(name, descriptor) {
 			if (descriptor.get) {
 				this.__defineGetter__(name, descriptor.get);
 			}
@@ -41,41 +62,49 @@
 				this.__defineSetter__(name, descriptor.set);
 			}
 		};
+	} else {
+		// NOTE: IE6-7 have an 'onpropertychange' event, but they also don't support <canvas>,
+		// so it's useless for our purposes, and again we should have bailed earlier.
+		defineProperty = undefined;
 	}
-	canvasProto = Object.getPrototypeOf(canvas) || HTMLCanvasElement;
-	contextProto = Object.getPrototypeOf(context) || CanvasRenderingContext2D;
-	// If we have Object.defineProperty, and if the browser has prefixed mozCurrentTransform[Inverse] properties,
-	// add renamed non-prefixed properties mirroring them.
-	if (Object.defineProperty && !('currentTransform' in contextProto) && ('mozCurrentTransform' in contextProto)) {
-		Object.defineProperty(contextProto, 'currentTransform', {
-			get: function() {
-				return this.mozCurrentTransform;
-			},
-			set: function(newMatrix) {
-				this.mozCurrentTransform = newMatrix;
-				return newMatrix;
-			},
-			configurable: false,
-			enumerable: false
-		});
-	}
-	if (Object.defineProperty && !('currentTransformInverse' in contextProto) && ('mozCurrentTransformInverse' in contextProto)) {
-		Object.defineProperty(contextProto, 'currentTransformInverse', {
-			get: function() {
-				return this.mozCurrentTransformInverse;
-			},
-			// No setter for inverse matrix
-			configurable: false,
-			enumerable: false
-		});
-	}
+	canvasProto = getPrototypeOf(canvas) || HTMLCanvasElement;
+	contextProto = getPrototypeOf(context) || CanvasRenderingContext2D;
 	// Separate polyfills for potentially missing Canvas context methods
 	if (!('resetTransform' in contextProto)) {
 		contextProto.resetTransform = function() {
 			this.setTransform.apply(this, identityMatrix);
 		};
 	}
-	// If we still don't have currentTransform[Inverse] properties, we need to track the CTM ourselves.
+	if ('currentTransform' in contextProto && 'currentTransformInverse' in contextProto) {
+		return; // Already have the two properties; no polyfill required
+	}
+	// If we have defineProperty, and if the browser has prefixed <foo>CurrentTransform[Inverse] properties,
+	// add renamed non-prefixed properties mirroring them.
+	for (i = 0; i < vendorPrefixes.length; i++) {
+		if (defineProperty && !('currentTransform' in contextProto) && ((vendorPrefixes[i] + 'CurrentTransform') in contextProto)) {
+			defineProperty(contextProto, 'currentTransform', {
+				get: function() {
+					return this[vendorPrefixes[i] + 'CurrentTransform'];
+				},
+				set: function(newMatrix) {
+					this.setTransform.apply(this, newMatrix);
+				},
+				configurable: false,
+				enumerable: false
+			});
+			defineProperty(contextProto, 'currentTransformInverse', {
+				get: function() {
+					return this[vendorPrefixes[i] + 'CurrentTransformInverse'];
+				},
+				// No setter for inverse matrix
+				configurable: false,
+				enumerable: false
+			});
+			return; // We're done at this point.
+		}
+	}
+	// If we get here, we still don't have currentTransform[Inverse] properties
+	// (not even prefixed ones), so we need to track the CTM ourselves.
 	/*
 	debug('currentTransform in contextProto: ', ('currentTransform' in contextProto));
 	debug('currentTransformInverse in contextProto: ', ('currentTransformInverse' in contextProto));
@@ -111,7 +140,9 @@
 					writable: true
 				});
 			} else {
-				// Object.defineProperty unavailable; fall back to simple assignment
+				// Object.defineProperty unavailable; fall back to simple assignment.
+				// TODO: Could avoid littering the context by storing these in a private (closed-over)
+				// hash keyed by context. However JS gives no easy way to associate a unique ID with each context.
 				context._transformMatrix = identityMatrix;
 				context._transformStack = [];
 			}
@@ -173,17 +204,20 @@
 			return originalResetTransform.apply(this, Array.prototype.slice.call(arguments));
 		};
 	}
-	if (Object.defineProperty && !('currentTransform' in contextProto)) {
-		Object.defineProperty(contextProto, 'currentTransform', {
+	if (defineProperty && !('currentTransform' in contextProto)) {
+		defineProperty(contextProto, 'currentTransform', {
 			get: function() {
 				return this._transformMatrix;
+			},
+			set: function(newMatrix) {
+				this.setTransform(newMatrix);
 			},
 			configurable: false,
 			enumerable: true
 		});
 	}
-	if (Object.defineProperty && !('currentTransformInverse' in contextProto)) {
-		Object.defineProperty(contextProto, 'currentTransformInverse', {
+	if (defineProperty && !('currentTransformInverse' in contextProto)) {
+		defineProperty(contextProto, 'currentTransformInverse', {
 			get: function() {
 				var a = this._transformMatrix[0], b = this._transformMatrix[1],
 					c = this._transformMatrix[2], d = this._transformMatrix[3],
