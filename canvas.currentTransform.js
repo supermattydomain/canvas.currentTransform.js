@@ -1,10 +1,16 @@
 /**
  * Polyfill for HTML5 CanvasRenderingContext2D.currentTransform[Inverse].
- * Matt <pseudobananamatty@yahoo.com.au, 2012-2013.
+ * Matt <mabananatty@supermattycom>, 2012-2013.
  * Please remove the yellow, tasty fruit from my email address in order to contact me.
  *
- * I, the author of this code, grant any entity the right to use this work for any purpose,
- * without any conditions, unless such conditions are required by law.
+ * I, the author of this code, grant any entity the right to use this work
+ * for any purpose and in any way, without any conditions or restrictions of any kind,
+ * unless such conditions or restrictions are required by law.
+ *
+ * Notwithstanding the above, I would greatly appreciate it if you were to:
+ * - Notify me of your use of this code, if any; and/or
+ * - Contribute any changes which you may make back to me.
+ *
  * There are no warranties as to the operation or failure to operate of this code,
  * nor of its fitness for any particular purpose.
  * 
