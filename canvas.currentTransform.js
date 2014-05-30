@@ -78,7 +78,7 @@
 	// Separate polyfills for potentially missing Canvas context methods
 	if (!('resetTransform' in contextProto)) {
 		contextProto.resetTransform = function() {
-			this.setTransform.apply(this, identityMatrix);
+			this.setTransform.apply(this, identityMatrix.concat());
 		};
 	}
 	if ('currentTransform' in contextProto && 'currentTransformInverse' in contextProto) {
@@ -136,7 +136,7 @@
 				Object.defineProperty(context, '_transformMatrix', {
 					configurable: false,
 					enumerable: false,
-					value: identityMatrix,
+					value: identityMatrix.concat(),
 					writable: true
 				});
 				Object.defineProperty(context, '_transformStack', {
@@ -149,7 +149,7 @@
 				// Object.defineProperty unavailable; fall back to simple assignment.
 				// TODO: Could avoid littering the context by storing these in a private (closed-over)
 				// hash keyed by context. However JS gives no easy way to associate a unique ID with each context.
-				context._transformMatrix = identityMatrix;
+				context._transformMatrix = identityMatrix.concat();
 				context._transformStack = [];
 			}
 			return context;
@@ -206,7 +206,7 @@
 			return originalSetTransform.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 		contextProto.resetTransform = function() {
-			this._transformMatrix = identityMatrix;
+			this._transformMatrix = identityMatrix.concat();
 			return originalResetTransform.apply(this, Array.prototype.slice.call(arguments, 0));
 		};
 	}
